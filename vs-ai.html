@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ChessMaster Arena - Vs AI</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  
+  <style>
+    :root {
+      --bg-dark: #0a0f1f;
+      --bg-card: rgba(26, 31, 53, 0.85);
+      --gold: #FFD700;
+      --white: #ffffff;
+      --text-gray: #b0b8d1;
+      --glass-border: rgba(255, 215, 0, 0.25);
+      --light-square: #eeeed2;
+      --dark-square: #769656;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, var(--bg-dark), #1a1f35);
+      color: var(--white);
+      min-height: 100vh;
+      padding-top: 70px;
+    }
+    
+    .glass {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+    }
+    
+    .navbar {
+      padding: 1rem 2rem;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+      transition: all 0.3s;
+    }
+    .navbar.scrolled { background: rgba(10,15,31,0.95); }
+    .navbar-brand { color: var(--gold) !important; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+    .nav-link { color: var(--text-gray) !important; margin: 0 0.3rem; padding: 0.5rem 1rem !important; border-radius: 8px; }    .nav-link:hover, .nav-link.active { color: var(--gold) !important; background: rgba(255,215,0,0.15); }
+    
+    .game-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2rem;
+      padding: 2rem;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+    
+    .board-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    #chessboard {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      width: min(92vw, 480px);
+      aspect-ratio: 1;
+      border: 4px solid var(--gold);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      user-select: none;
+    }
+    
+    .sq {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(2.2rem, 7vw, 3.5rem);
+      cursor: pointer;
+      position: relative;
+      font-family: 'Segoe UI Symbol', 'Arial Unicode MS', sans-serif;
+    }
+    
+    .sq.light { background: var(--light-square); }
+    .sq.dark { background: var(--dark-square); }
+    .sq.selected { background: rgba(255, 255, 0, 0.5) !important; }
+    
+    /* Valid move - KECIL */
+    .sq.valid::before {
+      content: '';
+      position: absolute;      width: 20%;
+      height: 20%;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 50%;
+    }
+    .sq.valid.capture::before {
+      width: 85%;
+      height: 85%;
+      background: transparent;
+      border: 4px solid rgba(220, 50, 50, 0.5);
+      box-sizing: border-box;
+    }
+    
+    .sq.last-move { background: rgba(255, 255, 100, 0.4) !important; }
+    .sq:hover { filter: brightness(1.08); }
+    
+    .piece.white { color: #fff !important; text-shadow: 0 0 4px #000, 0 0 8px #000; }
+    .piece.black { color: #000 !important; text-shadow: 0 0 2px #fff; }
+    
+    #status {
+      padding: 0.9rem 1.8rem;
+      text-align: center;
+      font-weight: 600;
+      border-radius: 10px;
+      background: rgba(255,215,0,0.12);
+      border: 1px solid var(--gold);
+      min-width: 260px;
+    }
+    #status.win { background: rgba(40,167,69,0.25); border-color: #28a745; color: #7fff7f; }
+    #status.thinking { background: rgba(108,92,231,0.25); border-color: #6C5CE7; color: #a89dff; }
+    
+    .info-panel { padding: 1rem; min-width: 220px; }
+    .info-title { color: var(--gold); font-weight: 600; margin-bottom: 0.8rem; text-align: center; }
+    .info-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--glass-border); }
+    .info-label { color: var(--text-gray); }
+    .info-val { color: var(--gold); font-weight: 600; }
+    
+    .level-select { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+    .lvl-btn { padding: 0.55rem 1.1rem; border: 2px solid; border-radius: 20px; background: transparent; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+    .lvl-btn.easy { border-color: #28a745; color: #28a745; }
+    .lvl-btn.medium { border-color: #ffc107; color: #ffc107; }
+    .lvl-btn.hard { border-color: #dc3545; color: #dc3545; }
+    .lvl-btn.active { background: var(--gold); color: var(--bg-dark); font-weight: 700; }
+    
+    .btn-group { display: flex; flex-direction: column; gap: 0.7rem; padding: 1rem; min-width: 220px; }
+    .btn-chess { padding: 0.9rem; border: 2px solid var(--gold); background: transparent; color: var(--gold); border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.25s; }
+    .btn-chess:hover { background: var(--gold); color: var(--bg-dark); transform: translateY(-2px); }
+    .btn-chess.danger { border-color: #dc3545; color: #ff6b6b; }
+    .btn-chess.danger:hover { background: #dc3545; color: white; }
+        footer { padding: 1.5rem; text-align: center; border-top: 1px solid var(--glass-border); margin-top: 2rem; color: var(--text-gray); }
+    
+    @media (max-width: 768px) {
+      .game-container { flex-direction: column; padding: 1rem; }
+      .info-panel, .btn-group { min-width: 100%; max-width: 480px; }
+      #chessboard { width: min(95vw, 360px); }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar navbar-expand-lg">
+    <div class="container">
+      <a class="navbar-brand" href="index.html"><i class="fas fa-chess-knight"></i> ChessMaster</a>
+      <button class="navbar-toggler glass" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="nav">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+          <li class="nav-item"><a class="nav-link active" href="vs-ai.html">Vs AI</a></li>
+          <li class="nav-item"><a class="nav-link" href="vs-player.html">Vs Player</a></li>
+          <li class="nav-item"><a class="nav-link" href="about.html">About</a></li>
+          <li class="nav-item"><a class="nav-link" href="saweria.html">Saweria</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="game-container">
+    <div class="board-wrapper">
+      <div id="chessboard" class="glass"></div>
+      <div id="status">🎮 Giliran: Putih (Anda)</div>
+    </div>
+    
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="info-panel glass">
+        <div class="info-title">🎯 Level AI</div>
+        <div class="level-select">
+          <button class="lvl-btn easy active" data-lvl="easy">🟢 Easy</button>
+          <button class="lvl-btn medium" data-lvl="medium">🟡 Medium</button>
+          <button class="lvl-btn hard" data-lvl="hard">🔴 Hard</button>
+        </div>
+      </div>
+      
+      <div class="info-panel glass">
+        <div class="info-row"><span class="info-label">Giliran</span><span class="info-val" id="turnTxt">Putih</span></div>
+        <div class="info-row"><span class="info-label">⏱️ Timer</span><span class="info-val" id="timer">00:00</span></div>
+        <div class="info-row"><span class="info-label">♟️ Move</span><span class="info-val" id="moveCnt">0</span></div>
+      </div>      
+      <div class="btn-group glass">
+        <button class="btn-chess" id="btnNew">🔄 New Game</button>
+        <button class="btn-chess danger" id="btnReset">🗑️ Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="glass">© 2024 ChessMaster Arena ♟️</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    const PIECES = {
+      'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
+      'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
+    };
+
+    let board = [];
+    let turn = 'white';
+    let selected = null;
+    let validMoves = [];
+    let lastMove = null;
+    let moveNum = 0;
+    let gameOver = false;
+    let aiLevel = 'easy';
+    let aiThinking = false;
+
+    // Initialize board
+    function initGame() {
+      board = [
+        ['r','n','b','q','k','b','n','r'],
+        ['p','p','p','p','p','p','p','p'],
+        [null,null,null,null,null,null,null,null],
+        [null,null,null,null,null,null,null,null],
+        [null,null,null,null,null,null,null,null],
+        [null,null,null,null,null,null,null,null],
+        ['P','P','P','P','P','P','P','P'],
+        ['R','N','B','Q','K','B','N','R']
+      ];
+      turn = 'white';
+      selected = null;
+      validMoves = [];
+      lastMove = null;
+      moveNum = 0;
+      gameOver = false;
+      aiThinking = false;
+      renderBoard();
+      updateStatus();
+      console.log('✅ Game initialized!');    }
+
+    function isWhite(code) { return code && 'KQRBNP'.includes(code); }
+    function isBlack(code) { return code && 'kqrbnp'.includes(code); }
+    function getColor(code) {
+      if (!code) return null;
+      if (isWhite(code)) return 'white';
+      if (isBlack(code)) return 'black';
+      return null;
+    }
+    function getType(code) { return code ? code.toLowerCase() : null; }
+    function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+
+    // Get valid moves for piece at (r,c)
+    function getValidMoves(r, c, checkTurn = true) {
+      const code = board[r][c];
+      if (!code) return [];
+      const color = getColor(code);
+      if (checkTurn && color !== turn) return [];
+      
+      const type = getType(code);
+      const moves = [];
+      
+      if (type === 'p') addPawnMoves(r, c, color, moves);
+      else if (type === 'n') addKnightMoves(r, c, color, moves);
+      else if (type === 'b') addBishopMoves(r, c, color, moves);
+      else if (type === 'r') addRookMoves(r, c, color, moves);
+      else if (type === 'q') addQueenMoves(r, c, color, moves);
+      else if (type === 'k') addKingMoves(r, c, color, moves);
+      
+      return moves;
+    }
+
+    function addPawnMoves(r, c, color, moves) {
+      const dir = (color === 'white') ? -1 : 1;
+      const startRow = (color === 'white') ? 6 : 1;
+      
+      if (inBounds(r+dir, c) && !board[r+dir][c]) {
+        moves.push([r+dir, c]);
+        if (r === startRow && !board[r+2*dir][c]) {
+          moves.push([r+2*dir, c]);
+        }
+      }
+      for (const dc of [-1, 1]) {
+        const nr = r + dir, nc = c + dc;
+        if (inBounds(nr, nc) && board[nr][nc] && getColor(board[nr][nc]) !== color) {
+          moves.push([nr, nc]);
+        }
+      }
+    }
+    function addKnightMoves(r, c, color, moves) {
+      const offs = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+      for (const [dr,dc] of offs) {
+        const nr = r + dr, nc = c + dc;
+        if (inBounds(nr, nc)) {
+          const t = board[nr][nc];
+          if (!t || getColor(t) !== color) moves.push([nr, nc]);
+        }
+      }
+    }
+
+    function addSlidingMoves(r, c, color, dirs, moves) {
+      for (const [dr,dc] of dirs) {
+        let nr = r + dr, nc = c + dc;
+        while (inBounds(nr, nc)) {
+          const t = board[nr][nc];
+          if (!t) {
+            moves.push([nr, nc]);
+          } else {
+            if (getColor(t) !== color) moves.push([nr, nc]);
+            break;
+          }
+          nr += dr; nc += dc;
+        }
+      }
+    }
+
+    function addBishopMoves(r, c, color, moves) {
+      addSlidingMoves(r, c, color, [[-1,-1],[-1,1],[1,-1],[1,1]], moves);
+    }
+    function addRookMoves(r, c, color, moves) {
+      addSlidingMoves(r, c, color, [[-1,0],[1,0],[0,-1],[0,1]], moves);
+    }
+    function addQueenMoves(r, c, color, moves) {
+      addBishopMoves(r, c, color, moves);
+      addRookMoves(r, c, color, moves);
+    }
+    function addKingMoves(r, c, color, moves) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (inBounds(nr, nc)) {
+            const t = board[nr][nc];
+            if (!t || getColor(t) !== color) moves.push([nr, nc]);
+          }
+        }
+      }
+    }
+    // Make a move
+    function makeMove(fromR, fromC, toR, toC) {
+      if (gameOver) return false;
+      
+      const piece = board[fromR][fromC];
+      if (!piece) return false;
+      
+      // Check if move is in validMoves
+      const isValid = validMoves.some(([vr,vc]) => vr === toR && vc === toC);
+      if (!isValid) return false;
+      
+      // Execute
+      board[toR][toC] = piece;
+      board[fromR][fromC] = null;
+      
+      // Pawn promotion
+      const type = getType(piece);
+      if (type === 'p' && ((turn === 'white' && toR === 0) || (turn === 'black' && toR === 7))) {
+        board[toR][toC] = (turn === 'white') ? 'Q' : 'q';
+      }
+      
+      lastMove = { from: [fromR,fromC], to: [toR,toC] };
+      moveNum++;
+      turn = (turn === 'white') ? 'black' : 'white';
+      
+      console.log(`✅ Move: [${fromR},${fromC}] -> [${toR},${toC}] | Next: ${turn}`);
+      
+      renderBoard();
+      updateStatus();
+      
+      // Check win
+      if (!hasKing(turn)) {
+        gameOver = true;
+        const winner = (turn === 'white') ? 'Putih' : 'Hitam';
+        document.getElementById('status').textContent = `🏆 ${winner} Menang!`;
+        document.getElementById('status').className = 'win';
+        return true;
+      }
+      
+      // AI move
+      if (turn === 'black' && !gameOver) {
+        aiThinking = true;
+        document.getElementById('status').textContent = '🤖 AI Berpikir...';
+        document.getElementById('status').className = 'thinking';
+        
+        setTimeout(() => {
+          doAIMove();
+          aiThinking = false;
+        }, 500);      }
+      
+      return true;
+    }
+
+    function hasKing(color) {
+      const king = (color === 'white') ? 'K' : 'k';
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          if (board[r][c] === king) return true;
+        }
+      }
+      return false;
+    }
+
+    // Get all moves for a color (for AI)
+    function getAllMovesForColor(color) {
+      const allMoves = [];
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = board[r][c];
+          if (piece && getColor(piece) === color) {
+            const moves = getValidMoves(r, c, false); // Don't check turn
+            for (const [nr, nc] of moves) {
+              allMoves.push({ from: [r,c], to: [nr,nc] });
+            }
+          }
+        }
+      }
+      return allMoves;
+    }
+
+    // AI Move
+    function doAIMove() {
+      if (gameOver || turn !== 'black') {
+        console.log('❌ AI skipped');
+        return;
+      }
+      
+      const moves = getAllMovesForColor('black');
+      console.log(`🤖 AI found ${moves.length} moves`);
+      
+      if (moves.length === 0) {
+        gameOver = true;
+        document.getElementById('status').textContent = '🏆 Putih Menang!';
+        document.getElementById('status').className = 'win';
+        return;
+      }
+      
+      let choice;      
+      if (aiLevel === 'easy') {
+        choice = moves[Math.floor(Math.random() * moves.length)];
+      } else if (aiLevel === 'medium') {
+        const captures = moves.filter(m => board[m.to[0]][m.to[1]]);
+        choice = captures.length > 0 
+          ? captures[Math.floor(Math.random() * captures.length)]
+          : moves[Math.floor(Math.random() * moves.length)];
+      } else {
+        const center = [[3,3],[3,4],[4,3],[4,4]];
+        let best = null, bestScore = -9999;
+        for (const m of moves) {
+          let score = 0;
+          if (board[m.to[0]][m.to[1]]) score += 10;
+          if (center.some(([r,c]) => r === m.to[0] && c === m.to[1])) score += 5;
+          if (m.from[0] === 6 || m.from[0] === 1) score += 2;
+          if (score > bestScore) { bestScore = score; best = m; }
+        }
+        choice = best || moves[0];
+      }
+      
+      console.log(`🤖 AI: [${choice.from[0]},${choice.from[1]}] -> [${choice.to[0]},${choice.to[1]}]`);
+      
+      // Set validMoves for AI move
+      selected = choice.from;
+      validMoves = [choice.to];
+      makeMove(choice.from[0], choice.from[1], choice.to[0], choice.to[1]);
+    }
+
+    // Render board
+    function renderBoard() {
+      const boardEl = document.getElementById('chessboard');
+      boardEl.innerHTML = '';
+      
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = document.createElement('div');
+          sq.className = `sq ${(r+c)%2===0 ? 'light' : 'dark'}`;
+          sq.dataset.r = r;
+          sq.dataset.c = c;
+          
+          const code = board[r][c];
+          if (code) {
+            sq.textContent = PIECES[code];
+            sq.classList.add('piece');
+            sq.classList.add(isWhite(code) ? 'white' : 'black');
+          }
+          
+          if (lastMove) {
+            const lf = lastMove.from, lt = lastMove.to;            if ((lf[0]===r && lf[1]===c) || (lt[0]===r && lt[1]===c)) {
+              sq.classList.add('last-move');
+            }
+          }
+          
+          if (selected && selected[0]===r && selected[1]===c) {
+            sq.classList.add('selected');
+          }
+          
+          if (validMoves.some(([vr,vc]) => vr===r && vc===c)) {
+            sq.classList.add('valid');
+            if (code) sq.classList.add('capture');
+          }
+          
+          sq.addEventListener('click', () => onSquareClick(r, c));
+          boardEl.appendChild(sq);
+        }
+      }
+    }
+
+    // Click handler
+    function onSquareClick(r, c) {
+      if (gameOver || turn !== 'white' || aiThinking) return;
+      
+      const code = board[r][c];
+      
+      // Move to valid square
+      if (selected && validMoves.some(([vr,vc]) => vr===r && vc===c)) {
+        makeMove(selected[0], selected[1], r, c);
+        selected = null;
+        validMoves = [];
+        return;
+      }
+      
+      // Select own piece
+      if (code && getColor(code) === 'white') {
+        selected = [r, c];
+        validMoves = getValidMoves(r, c, true);
+        console.log(`📍 Selected [${r},${c}], valid: ${JSON.stringify(validMoves)}`);
+        renderBoard();
+        return;
+      }
+      
+      // Deselect
+      selected = null;
+      validMoves = [];
+      renderBoard();
+    }
+
+    function updateStatus() {      const turnTxt = (turn === 'white') ? 'Putih (Anda)' : 'Hitam (AI)';
+      document.getElementById('turnTxt').textContent = turn === 'white' ? 'Putih' : 'Hitam';
+      document.getElementById('moveCnt').textContent = Math.ceil(moveNum / 2);
+      
+      if (!gameOver && !aiThinking) {
+        document.getElementById('status').textContent = `🎮 Giliran: ${turnTxt}`;
+        document.getElementById('status').className = '';
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      window.addEventListener('scroll', () => {
+        document.querySelector('.navbar').classList.toggle('scrolled', window.scrollY > 50);
+      });
+      
+      initGame();
+      
+      // Level buttons
+      document.querySelectorAll('.lvl-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          aiLevel = this.dataset.lvl;
+          console.log(`🎯 AI Level: ${aiLevel}`);
+        });
+      });
+      
+      document.getElementById('btnNew').addEventListener('click', () => {
+        if (confirm('Mulai game baru?')) initGame();
+      });
+      
+      document.getElementById('btnReset').addEventListener('click', () => {
+        if (confirm('Reset?')) initGame();
+      });
+      
+      // Timer
+      let sec = 0;
+      setInterval(() => {
+        sec++;
+        const m = String(Math.floor(sec/60)).padStart(2,'0');
+        const s = String(sec%60).padStart(2,'0');
+        document.getElementById('timer').textContent = `${m}:${s}`;
+      }, 1000);
+      
+      console.log('✅ ChessMaster Ready!');
+    });
+  </script>
+</body>
+</html>
